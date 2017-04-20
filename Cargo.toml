@@ -1,0 +1,8 @@
+[package]
+name = "asana"
+version = "1.0.0"
+authors = ["wildskyf <poppin.wildsky+gh@gmail.com>"]
+
+[dependencies]
+curl = "0.4.6"
+
