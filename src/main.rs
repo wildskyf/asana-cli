@@ -1,10 +1,12 @@
 extern crate curl;
+extern crate rustc_serialize;
 
 use std::env;
 use std::io::{stdout}; // Write
 use std::fs::File;
 use std::io::prelude::*;
 use curl::easy::{Easy, List};
+use rustc_serialize::json::Json;
 
 fn show(token: &str, target: &str) {
     // println!("Here are your projects:");
@@ -28,7 +30,30 @@ fn show(token: &str, target: &str) {
         transfer.perform().unwrap();
     }
     let res = String::from_utf8(data).unwrap();
-    println!("{}", res);
+
+    let json_obj = Json::from_str(&res).unwrap();
+
+    /* {
+        "data": {
+            "email"
+            "id"
+            "name"
+            "photo": {
+                "image_128x128"
+                "image_21x21"
+                "image_27x27"
+                "image_36x36"
+                "image_60x60"
+            },
+            "workspaces": [{
+                "id"
+                "name"
+            }]
+        }
+    } */
+
+
+    println!("{}", json_obj["data"]["workspaces"]);
 
 }
 
