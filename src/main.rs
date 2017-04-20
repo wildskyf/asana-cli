@@ -8,19 +8,15 @@ use std::io::prelude::*;
 use curl::easy::{Easy, List};
 use rustc_serialize::json::Json;
 
-fn show(token: &str, target: &str) {
-    // println!("Here are your projects:");
-
+fn fetch_api (url: &str, token: &str) -> String {
     let mut data = Vec::new();
-
     let mut easy = Easy::new();
     let header_string = format!("Authorization: Bearer {}", token);
     let mut list = List::new();
 
-    easy.url("https://app.asana.com/api/1.0/users/me").unwrap();
+    easy.url(&url).unwrap();
     list.append(&header_string).unwrap();
     easy.http_headers(list).unwrap();
-
     {
         let mut transfer = easy.transfer();
         transfer.write_function(|new_data| {
@@ -29,32 +25,15 @@ fn show(token: &str, target: &str) {
         }).unwrap();
         transfer.perform().unwrap();
     }
-    let res = String::from_utf8(data).unwrap();
+    String::from_utf8(data).unwrap()
+}
 
+fn show(token: &str, target: &str) {
+    // println!("Here are your projects:");
+
+    let res = fetch_api("https://app.asana.com/api/1.0/users/me", &token);
     let json_obj = Json::from_str(&res).unwrap();
-
-    /* {
-        "data": {
-            "email"
-            "id"
-            "name"
-            "photo": {
-                "image_128x128"
-                "image_21x21"
-                "image_27x27"
-                "image_36x36"
-                "image_60x60"
-            },
-            "workspaces": [{
-                "id"
-                "name"
-            }]
-        }
-    } */
-
-
     println!("{}", json_obj["data"]["workspaces"]);
-
 }
 
 fn main() {
