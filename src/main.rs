@@ -14,6 +14,7 @@ fn fetch_api (url: &str, token: &str) -> String {
     let mut list = List::new();
 
     easy.url(&url).unwrap();
+    list.append("Asana-Fast-Api: true").unwrap();
     list.append(&header_string).unwrap();
     easy.http_headers(list).unwrap();
     {
