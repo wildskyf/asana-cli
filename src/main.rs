@@ -30,15 +30,33 @@ fn fetch_api (url: &str, token: &str) -> String {
 fn show(token: &str, target: &str) {
     match target {
         "workspaces" => {
-            let res = fetch_api("https://app.asana.com/api/1.0/users/me", &token);
+            let res = fetch_api("https://app.asana.com/api/1.0/workspaces", &token);
             let json_obj = Json::from_str(&res).unwrap();
 
-            let workspaces = json_obj["data"]["workspaces"].as_array();
+            let workspaces = json_obj["data"].as_array();
 
             match workspaces {
                 Some(ref w) => {
                     for x in w.iter() {
-                        print!("{}\n", x["name"]);
+                        println!("{} {}", x["id"], x["name"]);
+                    }
+                },
+                None => println!("NOOOOOOOOO, {:?}", workspaces),
+            }
+
+        },
+
+        "projects" => {
+            // TODO: allow user to set default workspace
+            let res = fetch_api("https://app.asana.com/api/1.0/projects", &token);
+            let json_obj = Json::from_str(&res).unwrap();
+
+            let workspaces = json_obj["data"].as_array();
+
+            match workspaces {
+                Some(ref w) => {
+                    for x in w.iter() {
+                        println!("{} {}", x["id"], x["name"]);
                     }
                 },
                 None => println!("NOOOOOOOOO, {:?}", workspaces),
@@ -46,6 +64,7 @@ fn show(token: &str, target: &str) {
 
 
         },
+
         _ => {
             println!("Not supported target: {}", &target);
         }
