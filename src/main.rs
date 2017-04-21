@@ -1,6 +1,7 @@
 extern crate curl;
 extern crate rustc_serialize;
 
+use std::process;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -84,36 +85,41 @@ fn main() {
     let mut token = String::new();
     file.read_to_string(&mut token).unwrap();
 
-
     let version = "1.0.0";
     let args: Vec<_> = env::args().collect();
 
     if args.len() == 1 {
         println!("_(:3 ﾞ)_");
+        process::exit(0);
     }
-    else {
-        if args[1] == "version" {
-            println!("{}", version);
-        }
-        else if args[1] == "show" {
 
-            if args.len() == 2 {
-                println!("Show what?");
-            }
-            else if args[2] == "tasks" {
-                println!("There are too many tasks. You won't want to see them. ;)");
-            }
-            else {
-                if args.len() == 3 {
-                    show(&token, &args[2], "");
-                }
-                else {
-                    show(&token, &args[2], &args[3]);
-                }
-            }
+    if args[1] == "version" {
+        println!("{}", version);
+        process::exit(0);
+    }
+
+    if args[1] == "show" {
+
+        if args.len() == 2 {
+            println!("Show what?");
+            process::exit(0);
+        }
+
+        if args[2] == "tasks" {
+            println!("There are too many tasks. You won't want to see them. ;)");
+            process::exit(0);
         }
         else {
-            println!("{}",args[1]);
+            if args.len() == 3 {
+                show(&token, &args[2], "");
+            }
+            else {
+                show(&token, &args[2], &args[3]);
+            }
         }
     }
+    else {
+        println!("{}",args[1]);
+    }
+    process::exit(0)
 }
