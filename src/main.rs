@@ -2,7 +2,6 @@ extern crate curl;
 extern crate rustc_serialize;
 
 use std::env;
-use std::io::{stdout}; // Write
 use std::fs::File;
 use std::io::prelude::*;
 use curl::easy::{Easy, List};
@@ -29,11 +28,28 @@ fn fetch_api (url: &str, token: &str) -> String {
 }
 
 fn show(token: &str, target: &str) {
-    // println!("Here are your projects:");
+    match target {
+        "workspaces" => {
+            let res = fetch_api("https://app.asana.com/api/1.0/users/me", &token);
+            let json_obj = Json::from_str(&res).unwrap();
 
-    let res = fetch_api("https://app.asana.com/api/1.0/users/me", &token);
-    let json_obj = Json::from_str(&res).unwrap();
-    println!("{}", json_obj["data"]["workspaces"]);
+            let workspaces = json_obj["data"]["workspaces"].as_array();
+
+            match workspaces {
+                Some(ref w) => {
+                    for x in w.iter() {
+                        print!("{}\n", x["name"]);
+                    }
+                },
+                None => println!("NOOOOOOOOO, {:?}", workspaces),
+            }
+
+
+        },
+        _ => {
+            println!("Not supported target: {}", &target);
+        }
+    }
 }
 
 fn main() {
