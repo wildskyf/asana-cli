@@ -38,7 +38,7 @@ fn show(token: &str, target: &str, options: &str) {
     match json_obj["data"].as_array() {
         Some(ref w) => {
             for x in w.iter() {
-                if (options != "") && x["name"].to_string().contains(&options) {
+                if (options != "") && x["name"].to_string().to_lowercase().contains(&options) {
                     println!("{} {}", x["id"], x["name"]);
                 }
                 else if options == "" {
@@ -69,6 +69,7 @@ fn print_help(args: &Vec<String>, is_error: bool) {
             workspaces   \tshow all workspaces you belong to.
             projects     \tshow all projects.
                 --query, -q \tshow project contain the query string.
+            users        \tshow all users.
             tasks        \t[not support yet] show all tasks.
     ");
 }
@@ -88,7 +89,7 @@ fn main() {
             match arg1.as_ref() {
                 "--version" | "-v" => println!("{}", version),
                 "tasks" => println!("There are too many tasks. You won't want to see them. ;)"),
-                "workspaces" | "projects" => {
+                "workspaces" | "projects" | "users" => {
                     match args.get(2) {
                         None => show(&token, &args[1], ""), // show all projects
                         Some(arg2) => {
@@ -96,7 +97,7 @@ fn main() {
                                 "-q" | "--query" => {
                                     match args.get(3) {
                                         None => print_help(&args, true),
-                                        Some(arg3) => show(&token, &arg1, &arg3)
+                                        Some(arg3) => show(&token, &arg1, &(arg3.to_lowercase()))
                                     }
                                 },
                                 _ => print_help(&args, false)
