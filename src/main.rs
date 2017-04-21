@@ -96,7 +96,7 @@ fn print_help(args: &Vec<String>, is_error: bool) {
         Commands:
             workspaces   \tshow all workspaces you belong to.
             projects     \tshow all projects.
-                --find, -f \tshow project contain the query string.
+                --query, -q \tshow project contain the query string.
             tasks        \t[not support yet] show all tasks.
     ");
 }
@@ -122,7 +122,7 @@ fn main() {
                         None => show(&token, &args[1], ""), // show all projects
                         Some(arg2) => {
                             match arg2.as_ref() {
-                                "-f" | "--find" => {
+                                "-q" | "--query" => {
                                     match args.get(3) {
                                         None => print_help(&args, true),
                                         Some(arg3) => show(&token, &arg1, &arg3)
