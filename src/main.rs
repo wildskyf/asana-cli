@@ -8,7 +8,7 @@ use std::io::prelude::*;
 use curl::easy::{Easy, List};
 use rustc_serialize::json::Json;
 
-fn fetch_api (url: &str, token: &str) -> String {
+fn fetch_api (url: &str, token: &str) -> Json {
     let mut data = Vec::new();
     let mut easy = Easy::new();
     let header_string = format!("Authorization: Bearer {}", token);
@@ -26,14 +26,14 @@ fn fetch_api (url: &str, token: &str) -> String {
         }).unwrap();
         transfer.perform().unwrap();
     }
-    String::from_utf8(data).unwrap()
+    let res = String::from_utf8(data).unwrap();
+    Json::from_str(&res).unwrap()
 }
 
 fn show(token: &str, target: &str, options: &str) {
     match target {
         "workspaces" => {
-            let res = fetch_api("https://app.asana.com/api/1.0/workspaces", &token);
-            let json_obj = Json::from_str(&res).unwrap();
+            let json_obj = fetch_api("https://app.asana.com/api/1.0/workspaces", &token);
 
             let workspaces = json_obj["data"].as_array();
 
@@ -51,8 +51,7 @@ fn show(token: &str, target: &str, options: &str) {
         "projects" => {
 
             // TODO: allow user to set default workspace
-            let res = fetch_api("https://app.asana.com/api/1.0/projects", &token);
-            let json_obj = Json::from_str(&res).unwrap();
+            let json_obj = fetch_api("https://app.asana.com/api/1.0/projects", &token);
 
             let workspaces = json_obj["data"].as_array();
 
