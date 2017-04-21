@@ -46,7 +46,7 @@ fn show(token: &str, target: &str, options: &str) {
                 }
             }
         },
-        None => println!("NOOOOOOOOO"),
+        None => println!("{}", &json_obj),
     }
 }
 
