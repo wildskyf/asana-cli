@@ -31,50 +31,22 @@ fn fetch_api (url: &str, token: &str) -> Json {
 }
 
 fn show(token: &str, target: &str, options: &str) {
-    match target {
-        "workspaces" => {
-            let json_obj = fetch_api("https://app.asana.com/api/1.0/workspaces", &token);
+    // TODO: allow user to set default workspace
+    let url = format!("https://app.asana.com/api/1.0/{}", &target);
+    let json_obj = fetch_api(&url, &token);
 
-            let workspaces = json_obj["data"].as_array();
-
-            match workspaces {
-                Some(ref w) => {
-                    for x in w.iter() {
-                        println!("{} {}", x["id"], x["name"]);
-                    }
-                },
-                None => println!("NOOOOOOOOO, {:?}", workspaces),
+    match json_obj["data"].as_array() {
+        Some(ref w) => {
+            for x in w.iter() {
+                if (options != "") && x["name"].to_string().contains(&options) {
+                    println!("{} {}", x["id"], x["name"]);
+                }
+                else if options == "" {
+                    println!("{} {}", x["id"], x["name"]);
+                }
             }
-
         },
-
-        "projects" => {
-
-            // TODO: allow user to set default workspace
-            let json_obj = fetch_api("https://app.asana.com/api/1.0/projects", &token);
-
-            let workspaces = json_obj["data"].as_array();
-
-            match workspaces {
-                Some(ref w) => {
-                    for x in w.iter() {
-                        if (options != "") && x["name"].to_string().contains(&options) {
-                            println!("{} {}", x["id"], x["name"]);
-                        }
-                        else if options == "" {
-                            println!("{} {}", x["id"], x["name"]);
-                        }
-                    }
-                },
-                None => println!("NOOOOOOOOO, {:?}", workspaces),
-            }
-
-
-        },
-
-        _ => {
-            println!("Not supported target: {}", &target);
-        }
+        None => println!("NOOOOOOOOO"),
     }
 }
 
@@ -116,8 +88,7 @@ fn main() {
             match arg1.as_ref() {
                 "--version" | "-v" => println!("{}", version),
                 "tasks" => println!("There are too many tasks. You won't want to see them. ;)"),
-                "workspaces" => show(&token, &args[1], ""),
-                "projects" => {
+                "workspaces" | "projects" => {
                     match args.get(2) {
                         None => show(&token, &args[1], ""), // show all projects
                         Some(arg2) => {
