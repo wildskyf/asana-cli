@@ -79,6 +79,29 @@ fn show(token: &str, target: &str, options: &str) {
     }
 }
 
+fn print_help(args: &Vec<String>, is_error: bool) {
+
+    if is_error {
+        println!("");
+        for i in 0..args.len() {
+            print!("{} ", args[i]);
+        }
+        print!("is not work, FYI...\n");
+    }
+
+    println!("
+        Asana Command Line Tool
+        ==========================================\n
+        options:
+            --version, -v\tshow the version of this tool.\n
+        Commands:
+            workspaces   \tshow all workspaces you belong to.
+            projects     \tshow all projects.
+                --find, -f \tshow project contain the query string.
+            tasks        \t[not support yet] show all tasks.
+    ");
+}
+
 fn main() {
 
     let mut file = File::open(".token").unwrap();
@@ -86,40 +109,35 @@ fn main() {
     file.read_to_string(&mut token).unwrap();
 
     let version = "1.0.0";
-    let args: Vec<_> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
 
-    if args.len() == 1 {
-        println!("_(:3 ﾞ)_");
-        process::exit(0);
-    }
-
-    if args[1] == "version" {
-        println!("{}", version);
-        process::exit(0);
-    }
-
-    if args[1] == "show" {
-
-        if args.len() == 2 {
-            println!("Show what?");
-            process::exit(0);
-        }
-
-        if args[2] == "tasks" {
-            println!("There are too many tasks. You won't want to see them. ;)");
-            process::exit(0);
-        }
-        else {
-            if args.len() == 3 {
-                show(&token, &args[2], "");
-            }
-            else {
-                show(&token, &args[2], &args[3]);
+    match args.get(1) {
+        None => print_help(&args, false),
+        Some(arg1) => {
+            match arg1.as_ref() {
+                "--version" | "-v" => println!("{}", version),
+                "tasks" => println!("There are too many tasks. You won't want to see them. ;)"),
+                "workspaces" => show(&token, &args[1], ""),
+                "projects" => {
+                    match args.get(2) {
+                        None => show(&token, &args[1], ""), // show all projects
+                        Some(arg2) => {
+                            match arg2.as_ref() {
+                                "-f" | "--find" => {
+                                    match args.get(3) {
+                                        None => print_help(&args, true),
+                                        Some(arg3) => show(&token, &arg1, &arg3)
+                                    }
+                                },
+                                _ => print_help(&args, false)
+                            }
+                        }
+                    }
+                },
+                "--help" | "-h" | _ => print_help(&args, false)
             }
         }
     }
-    else {
-        println!("{}",args[1]);
-    }
+
     process::exit(0)
 }
