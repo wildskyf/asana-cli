@@ -1,23 +1,33 @@
 extern crate curl;
-extern crate rustc_serialize;
+extern crate serde_json;
+#[macro_use]
+extern crate clap;
 
 use std::process;
-use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 use curl::easy::{Easy, List};
-use rustc_serialize::json::Json;
+use serde_json::Value;
 
 // PROGRAM INFO
 static TOKEN_FILE_NAME: &'static str = ".token";
+static DEFAULT_WROKSPACE_FILE_NAME: &'static str = ".default_workspace";
 static VERSION: &'static str = "1.0.0";
 
-fn fetch_api (url: &str, token: &str) -> Json {
+fn open_and_read(file_name: &str, taker: &mut String) {
+    let mut file = File::open(file_name).unwrap_or_else(|_| {
+        panic!("Asana init: {}: No such file or directory.", file_name);
+    });
+    file.read_to_string(taker).unwrap_or_else(|_| { panic!("Error happened when reading file.") } );
+}
+
+fn fetch_api(url: &str, token: &str) -> Value {
     let mut data = Vec::new();
     let mut easy = Easy::new();
     let header_string = format!("Authorization: Bearer {}", token);
     let mut list = List::new();
 
+    // FIXME: unwrap => unwrap_or_else
     easy.url(&url).unwrap();
     list.append("Asana-Fast-Api: true").unwrap();
     list.append(&header_string).unwrap();
@@ -30,104 +40,104 @@ fn fetch_api (url: &str, token: &str) -> Json {
         }).unwrap();
         transfer.perform().unwrap();
     }
-    let res = String::from_utf8(data).unwrap();
-    Json::from_str(&res).unwrap()
+
+    let body = std::str::from_utf8(&data).unwrap_or_else(|e| {
+        panic!("Failed to parse response from {}; error is {}", url, e);
+    });
+
+    serde_json::from_str(body).unwrap_or_else(|e| {
+        panic!("Failed to parse json; error is {}", e);
+    })
 }
 
-fn show(token: &str, target: &str, options: &str) {
+fn print_workspace_name(token: &str, workspace_id: &str) {
+    let url = format!("https://app.asana.com/api/1.0/workspaces/{}", &workspace_id);
+
+    println!("On workspace {}", fetch_api(&url, &token).as_object()
+        .and_then(|obj| obj.get("data"))
+        .and_then(|obj| obj.as_object())
+        .and_then(|obj| obj.get("name"))
+        .and_then(|obj| obj.as_string())
+        .unwrap_or_else(|| {
+            panic!("Failed to get 'data' value from json");
+        })
+    );
+}
+
+fn parse_task(d: &Value) -> (&str, &str, bool) {
+    let task = d.as_object();
+    let assignee_status = task.and_then(|task| task.get("assignee_status") ).unwrap().as_string().unwrap();
+    let name            = task.and_then(|task| task.get("name") ).unwrap().as_string().unwrap();
+    let completed       = task.and_then(|task| task.get("completed") ).unwrap().as_boolean().unwrap();
+
+    (assignee_status, name, completed)
+}
+
+fn show_my_tasks(token: &str, workspace_id: &str) {
+
     // TODO: allow user to set default workspace
-    let url = format!("https://app.asana.com/api/1.0/{}", &target);
-    let json_obj = fetch_api(&url, &token);
+    let url = format!("https://app.asana.com/api/1.0/tasks?workspace={}&assignee=me&opt_fields=assignee_status,name,completed", &workspace_id);
+    let json_obj:Value = fetch_api(&url, &token);
 
-    match json_obj["data"].as_array() {
-        Some(ref w) => {
-            for x in w.iter() {
-                if (options != "") && x["name"].to_string().to_lowercase().contains(&options) {
-                    println!("{} {}", x["id"], x["name"]);
-                }
-                else if options == "" {
-                    println!("{} {}", x["id"], x["name"]);
-                }
-            }
-        },
-        None => println!("{}", &json_obj),
-    }
-}
+    let data = json_obj.as_object()
+        .and_then(|obj| obj.get("data"))
+        .and_then(|data| data.as_array())
+        .unwrap_or_else(|| {
+            panic!("Failed to get 'data' value from json");
+        });
 
+    println!("Today:");
+    for d in data.iter() {
+        let (assignee_status, name, completed) = parse_task(&d);
 
-fn asana_status(args: &Vec<String>, token: &str) {
-    println!("git status? asana status!");
-}
-
-fn print_help(args: &Vec<String>, is_error: bool) {
-
-    if is_error {
-        println!("");
-        for i in 0..args.len() {
-            print!("{} ", args[i]);
+        if assignee_status == "today" && name != "" && !completed {
+            println!("\t{}", name);
         }
-        print!("is not work, FYI...\n");
     }
 
-    println!("
-        Asana Command Line Tool
-        ==========================================\n
-        options:
-            --version, -v\tshow the version of this tool.\n
-        Commands:
-            status       \tshow your uncompleted tasks.\n
-            -\n
-            workspaces   \tshow all workspaces you belong to.
-            projects     \tshow all projects.
-                --query, -q \tshow project contain the query string.
-            users        \tshow all users.
-            tasks        \t[not support yet] show all tasks.
-    ");
+    println!("Upcoming:");
+    for d in data.iter() {
+        let (assignee_status, name, completed) = parse_task(&d);
+
+        if assignee_status == "upcoming" && name != "" && !completed {
+            println!("\t{}", name);
+        }
+    }
+}
+
+fn asana_status(token: &str, current_workspace_id: &str) {
+    println!("Here are tasks assigned to you:");
+    print_workspace_name(token, current_workspace_id);
+    show_my_tasks(token, current_workspace_id);
 }
 
 fn main() {
+    let matches = clap_app!(myapp =>
+        (version: VERSION)
+        (author: "Wildsky F. <wildsky@moztw.org>")
+        (about: "Yet Another Asana Client")
+        (@subcommand status =>
+            (about: "show your uncompleted tasks")
+            (version: VERSION)
+            (author: "Wildsky F. <wildsky@moztw.org>")
+        )
+        (@subcommand tasks =>
+            (about: "")
+        )
+    ).get_matches();
 
-    let mut file = match File::open(TOKEN_FILE_NAME){
-        Ok(t) => t,
-        Err(_) => {
-            println!("You need {}!", TOKEN_FILE_NAME);
-            process::exit(1);
-        }
-    };
     let mut token = String::new();
-    file.read_to_string(&mut token).unwrap();
+    let mut default_workspace_id = String::new();
+    open_and_read(TOKEN_FILE_NAME, &mut token);
+    open_and_read(DEFAULT_WROKSPACE_FILE_NAME, &mut default_workspace_id);
+    let token = token.trim();
+    let default_workspace_id = default_workspace_id.trim();
 
-    let args: Vec<String> = env::args().collect();
-
-    match args.get(1) {
-        None => print_help(&args, false),
-        Some(arg1) => {
-            match arg1.as_ref() {
-                "--version" | "-v" => println!("{}", VERSION),
-
-                "tasks" => println!("There are too many tasks. You won't want to see them all. ;)"),
-
-                "status" => asana_status(&args, &token),
-
-                "workspaces" | "projects" | "users" => {
-                    match args.get(2) {
-                        None => show(&token, &args[1], ""), // show all projects
-                        Some(arg2) => {
-                            match arg2.as_ref() {
-                                "-q" | "--query" => {
-                                    match args.get(3) {
-                                        None => print_help(&args, true),
-                                        Some(arg3) => show(&token, &arg1, &(arg3.to_lowercase()))
-                                    }
-                                },
-                                _ => print_help(&args, false)
-                            }
-                        }
-                    }
-                },
-                "--help" | "-h" | _ => print_help(&args, false)
-            }
-        }
+    if let Some(_) = matches.subcommand_matches("status") {
+        asana_status(&token, &default_workspace_id)
+    }
+    else if let Some(_) = matches.subcommand_matches("tasks") {
+        println!("There are too many tasks. You won't want to see them all. ;)")
     }
 
     process::exit(0)
