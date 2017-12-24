@@ -114,7 +114,7 @@ fn asana_status(config: Config) {
 }
 
 fn main() {
-    let matches = clap_app!(myapp =>
+    let matches = clap_app!( asana =>
         (version: VERSION)
         (author: "Wildsky F. <wildsky@moztw.org>")
         (about: "Yet Another Asana Client")
