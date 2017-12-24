@@ -14,11 +14,18 @@ static TOKEN_FILE_NAME: &'static str = ".token";
 static DEFAULT_WROKSPACE_FILE_NAME: &'static str = ".default_workspace";
 static VERSION: &'static str = "1.0.0";
 
-fn open_and_read(file_name: &str, taker: &mut String) {
+struct Config {
+    token: String,
+    default_ws: String
+}
+
+fn open_and_read(file_name: &str) -> String {
+    let mut t = String::new();
     let mut file = File::open(file_name).unwrap_or_else(|_| {
         panic!("Asana init: {}: No such file or directory.", file_name);
     });
-    file.read_to_string(taker).unwrap_or_else(|_| { panic!("Error happened when reading file.") } );
+    file.read_to_string(&mut t).unwrap_or_else(|_| { panic!("Error happened when reading file.") } );
+    t.trim().to_string()
 }
 
 fn fetch_api(url: &str, token: &str) -> Value {
@@ -50,10 +57,10 @@ fn fetch_api(url: &str, token: &str) -> Value {
     })
 }
 
-fn print_workspace_name(token: &str, workspace_id: &str) {
-    let url = format!("https://app.asana.com/api/1.0/workspaces/{}", &workspace_id);
+fn print_workspace_name(config: &Config) {
+    let url = format!("https://app.asana.com/api/1.0/workspaces/{}", &config.default_ws);
 
-    println!("On workspace {}", fetch_api(&url, &token).as_object()
+    println!("On workspace {}", fetch_api(&url, &config.token).as_object()
         .and_then(|obj| obj.get("data"))
         .and_then(|obj| obj.as_object())
         .and_then(|obj| obj.get("name"))
@@ -73,11 +80,11 @@ fn parse_task(d: &Value) -> (&str, &str, bool) {
     (assignee_status, name, completed)
 }
 
-fn show_my_tasks(token: &str, workspace_id: &str) {
+fn show_my_tasks(config: &Config) {
 
     // TODO: allow user to set default workspace
-    let url = format!("https://app.asana.com/api/1.0/tasks?workspace={}&assignee=me&opt_fields=assignee_status,name,completed", &workspace_id);
-    let json_obj:Value = fetch_api(&url, &token);
+    let url = format!("https://app.asana.com/api/1.0/tasks?workspace={}&assignee=me&opt_fields=assignee_status,name,completed", &config.default_ws);
+    let json_obj:Value = fetch_api(&url, &config.token);
 
     let data = json_obj.as_object()
         .and_then(|obj| obj.get("data"))
@@ -105,10 +112,10 @@ fn show_my_tasks(token: &str, workspace_id: &str) {
     }
 }
 
-fn asana_status(token: &str, current_workspace_id: &str) {
+fn asana_status(config: Config) {
     println!("Here are tasks assigned to you:");
-    print_workspace_name(token, current_workspace_id);
-    show_my_tasks(token, current_workspace_id);
+    print_workspace_name(&config);
+    show_my_tasks(&config);
 }
 
 fn main() {
@@ -126,15 +133,13 @@ fn main() {
         )
     ).get_matches();
 
-    let mut token = String::new();
-    let mut default_workspace_id = String::new();
-    open_and_read(TOKEN_FILE_NAME, &mut token);
-    open_and_read(DEFAULT_WROKSPACE_FILE_NAME, &mut default_workspace_id);
-    let token = token.trim();
-    let default_workspace_id = default_workspace_id.trim();
+    let config = Config {
+        token: open_and_read(TOKEN_FILE_NAME),
+        default_ws: open_and_read(DEFAULT_WROKSPACE_FILE_NAME)
+    };
 
     if let Some(_) = matches.subcommand_matches("status") {
-        asana_status(&token, &default_workspace_id)
+        asana_status(config);
     }
     else if let Some(_) = matches.subcommand_matches("tasks") {
         println!("There are too many tasks. You won't want to see them all. ;)")
