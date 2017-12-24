@@ -8,6 +8,10 @@ use std::io::prelude::*;
 use curl::easy::{Easy, List};
 use rustc_serialize::json::Json;
 
+// PROGRAM INFO
+static TOKEN_FILE_NAME: &'static str = ".token";
+static VERSION: &'static str = "1.0.0";
+
 fn fetch_api (url: &str, token: &str) -> Json {
     let mut data = Vec::new();
     let mut easy = Easy::new();
@@ -50,6 +54,11 @@ fn show(token: &str, target: &str, options: &str) {
     }
 }
 
+
+fn asana_status(args: &Vec<String>, token: &str) {
+    println!("git status? asana status!");
+}
+
 fn print_help(args: &Vec<String>, is_error: bool) {
 
     if is_error {
@@ -66,6 +75,8 @@ fn print_help(args: &Vec<String>, is_error: bool) {
         options:
             --version, -v\tshow the version of this tool.\n
         Commands:
+            status       \tshow your uncompleted tasks.\n
+            -\n
             workspaces   \tshow all workspaces you belong to.
             projects     \tshow all projects.
                 --query, -q \tshow project contain the query string.
@@ -76,19 +87,28 @@ fn print_help(args: &Vec<String>, is_error: bool) {
 
 fn main() {
 
-    let mut file = File::open(".token").unwrap();
+    let mut file = match File::open(TOKEN_FILE_NAME){
+        Ok(t) => t,
+        Err(_) => {
+            println!("You need {}!", TOKEN_FILE_NAME);
+            process::exit(1);
+        }
+    };
     let mut token = String::new();
     file.read_to_string(&mut token).unwrap();
 
-    let version = "1.0.0";
     let args: Vec<String> = env::args().collect();
 
     match args.get(1) {
         None => print_help(&args, false),
         Some(arg1) => {
             match arg1.as_ref() {
-                "--version" | "-v" => println!("{}", version),
-                "tasks" => println!("There are too many tasks. You won't want to see them. ;)"),
+                "--version" | "-v" => println!("{}", VERSION),
+
+                "tasks" => println!("There are too many tasks. You won't want to see them all. ;)"),
+
+                "status" => asana_status(&args, &token),
+
                 "workspaces" | "projects" | "users" => {
                     match args.get(2) {
                         None => show(&token, &args[1], ""), // show all projects
