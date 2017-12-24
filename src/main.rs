@@ -80,8 +80,18 @@ fn parse_task(d: &Value) -> (&str, &str, bool) {
     (assignee_status, name, completed)
 }
 
-fn show_my_tasks(config: &Config) {
+fn show_task_by_category(category: &str, data: &Vec<Value>) {
+    println!("{}:", category);
+    for d in data.iter() {
+        let (assignee_status, name, completed) = parse_task(&d);
 
+        if assignee_status == category && name != "" && !completed && name.chars().last().unwrap() != ':' {
+            println!("\t{}", name);
+        }
+    }
+}
+
+fn show_my_tasks(config: &Config) {
     // TODO: allow user to set default workspace
     let url = format!("https://app.asana.com/api/1.0/tasks?workspace={}&assignee=me&opt_fields=assignee_status,name,completed", &config.default_ws);
     let json_obj:Value = fetch_api(&url, &config.token);
@@ -90,31 +100,16 @@ fn show_my_tasks(config: &Config) {
         .and_then(|obj| obj.get("data"))
         .and_then(|data| data.as_array())
         .unwrap_or_else(|| {
-            panic!("Failed to get 'data' value from json");
+            panic!("Failed to access 'data': undefined");
         });
 
-    println!("Today:");
-    for d in data.iter() {
-        let (assignee_status, name, completed) = parse_task(&d);
-
-        if assignee_status == "today" && name != "" && !completed {
-            println!("\t{}", name);
-        }
-    }
-
-    println!("Upcoming:");
-    for d in data.iter() {
-        let (assignee_status, name, completed) = parse_task(&d);
-
-        if assignee_status == "upcoming" && name != "" && !completed {
-            println!("\t{}", name);
-        }
-    }
+    show_task_by_category("today", data);
+    show_task_by_category("upcoming", data);
 }
 
 fn asana_status(config: Config) {
-    println!("Here are tasks assigned to you:");
     print_workspace_name(&config);
+    println!("Here are tasks assigned to you:");
     show_my_tasks(&config);
 }
 
