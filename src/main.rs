@@ -2,6 +2,7 @@ extern crate curl;
 extern crate serde_json;
 #[macro_use]
 extern crate clap;
+extern crate status;
 
 use std::process;
 use std::fs::File;
@@ -80,18 +81,33 @@ fn parse_task(d: &Value) -> (&str, &str, bool) {
     (assignee_status, name, completed)
 }
 
-fn show_task_by_category(category: &str, data: &Vec<Value>) {
+fn show_task_by_category(category: &str, data: &Vec<Value>, show_all: bool) {
     println!("{}:", category);
     for d in data.iter() {
         let (assignee_status, name, completed) = parse_task(&d);
 
-        if assignee_status == category && name != "" && !completed && name.chars().last().unwrap() != ':' {
-            println!("\t{}", name);
+        if assignee_status == category && name != "" {
+            if show_all {
+                let sec_indent = if name.chars().last().unwrap() == ':' { "  " } else { "     " } ;
+                let check = if name.chars().last().unwrap() == ':' {
+                    ""
+                }
+                else {
+                    if completed { "[v]" } else { "[ ]" }
+                };
+
+                println!("{}{} {}", sec_indent, check, name);
+            }
+            else {
+                 if !completed && name.chars().last().unwrap() != ':' {
+                     println!("\t{}", name);
+                 }
+            }
         }
     }
 }
 
-fn show_my_tasks(config: &Config) {
+fn show_my_tasks(config: &Config, show_all: bool) {
     // TODO: allow user to set default workspace
     let url = format!("https://app.asana.com/api/1.0/tasks?workspace={}&assignee=me&opt_fields=assignee_status,name,completed", &config.default_ws);
     let json_obj:Value = fetch_api(&url, &config.token);
@@ -103,26 +119,23 @@ fn show_my_tasks(config: &Config) {
             panic!("Failed to access 'data': undefined");
         });
 
-    show_task_by_category("today", data);
-    show_task_by_category("upcoming", data);
+    show_task_by_category("today", data, show_all);
+    show_task_by_category("upcoming", data, show_all);
 }
 
-fn asana_status(config: Config) {
+fn asana_status(config: Config, show_all: bool) {
     print_workspace_name(&config);
     println!("Here are tasks assigned to you:");
-    show_my_tasks(&config);
+    show_my_tasks(&config, show_all);
 }
 
 fn main() {
+    let status = status::clap();
     let matches = clap_app!( asana =>
         (version: VERSION)
         (author: "Wildsky F. <wildsky@moztw.org>")
         (about: "Yet Another Asana Client")
-        (@subcommand status =>
-            (about: "show your uncompleted tasks")
-            (version: VERSION)
-            (author: "Wildsky F. <wildsky@moztw.org>")
-        )
+        (subcommand: status)
         (@subcommand tasks =>
             (about: "")
         )
@@ -133,8 +146,8 @@ fn main() {
         default_ws: open_and_read(DEFAULT_WROKSPACE_FILE_NAME)
     };
 
-    if let Some(_) = matches.subcommand_matches("status") {
-        asana_status(config);
+    if let Some(matches) = matches.subcommand_matches("status") {
+        asana_status(config, matches.is_present("all"));
     }
     else if let Some(_) = matches.subcommand_matches("tasks") {
         println!("There are too many tasks. You won't want to see them all. ;)")

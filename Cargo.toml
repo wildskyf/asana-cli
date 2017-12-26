@@ -3,6 +3,10 @@ name = "asana"
 version = "1.0.0"
 authors = ["wildskyf <poppin.wildsky+gh@gmail.com>"]
 
+[lib]
+name = "status"
+path = "./src/status.rs"
+
 [dependencies]
 curl = "0.4.6"
 serde_json = "0.6.0"
@@ -12,4 +16,4 @@ version = "2.29"
 default-features = false
 
 # Cherry-pick the features you'd like to use
-features = [ "yaml" ]
+features = [ "yaml", "color", "suggestions" ]
