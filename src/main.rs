@@ -1,6 +1,5 @@
 extern crate curl;
 extern crate serde_json;
-#[macro_use]
 extern crate clap;
 
 mod fetch;
@@ -9,6 +8,7 @@ use std::process;
 use std::fs::File;
 use std::io::prelude::*;
 use serde_json::Value;
+use clap::{Arg, App, SubCommand};
 
 // PROGRAM INFO
 static TOKEN_FILE_NAME: &'static str = ".token";
@@ -18,13 +18,6 @@ static VERSION: &'static str = "1.0.0";
 struct Config {
     token: String,
     default_ws: String
-}
-
-fn status_clap() -> clap::App<'static, 'static> {
-    clap_app!(status =>
-        (about: "show your uncompleted tasks")
-        (author: "Wildsky F. <wildsky@moztw.org>")
-        (@arg all: -a "show all task assigned to you, completed and uncompleted (with prefix [ ] or [v])"))
 }
 
 fn open_and_read(file_name: &str) -> String {
@@ -101,6 +94,11 @@ fn show_my_tasks(config: &Config, show_all: bool) {
     show_task_by_category("upcoming", data, show_all);
 }
 
+
+fn asana_add(_config: Config, task_name: &str) {
+    println!("Let's add task assigned to you: {}", task_name);
+}
+
 fn asana_status(config: Config, show_all: bool) {
     print_workspace_name(&config);
     println!("Here are tasks assigned to you:");
@@ -108,16 +106,23 @@ fn asana_status(config: Config, show_all: bool) {
 }
 
 fn main() {
-    let status = status_clap();
-    let matches = clap_app!( asana =>
-        (version: VERSION)
-        (author: "Wildsky F. <wildsky@moztw.org>")
-        (about: "Yet Another Asana Client")
-        (subcommand: status)
-        (@subcommand tasks =>
-            (about: "")
-        )
-    ).get_matches();
+    let matches = App::new("asana")
+        .version(VERSION)
+        .author("Wildsky F. <wildsky@moztw.org>")
+        .about("Yet Another Asana Client")
+        .subcommand(SubCommand::with_name("add")
+                    .about("add task (default assign to yourself)")
+                    .arg(Arg::with_name("TASK_NAME")
+                         .required(true)
+                         .help("Sets the task to add")))
+        .subcommand(SubCommand::with_name("status")
+                    .about("show your uncompleted tasks")
+                    .arg(Arg::with_name("all")
+                         .short("a")
+                         .long("all")
+                         .help("show all task assigned to you, completed and uncompleted (with prefix [ ] or [v])")))
+        .subcommand(SubCommand::with_name("tasks").about(""))
+        .get_matches();
 
     let config = Config {
         token: open_and_read(TOKEN_FILE_NAME),
@@ -126,6 +131,9 @@ fn main() {
 
     if let Some(matches) = matches.subcommand_matches("status") {
         asana_status(config, matches.is_present("all"));
+    }
+    else if let Some(matches) = matches.subcommand_matches("add") {
+        asana_add(config, matches.value_of("TASK_NAME").unwrap());
     }
     else if let Some(_) = matches.subcommand_matches("tasks") {
         println!("There are too many tasks. You won't want to see them all. ;)")
