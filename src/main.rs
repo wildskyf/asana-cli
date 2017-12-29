@@ -3,10 +3,11 @@ extern crate serde_json;
 #[macro_use]
 extern crate clap;
 
+mod fetch;
+
 use std::process;
 use std::fs::File;
 use std::io::prelude::*;
-use curl::easy::{Easy, List};
 use serde_json::Value;
 
 // PROGRAM INFO
@@ -19,7 +20,7 @@ struct Config {
     default_ws: String
 }
 
-pub fn status_clap() -> clap::App<'static, 'static> {
+fn status_clap() -> clap::App<'static, 'static> {
     clap_app!(status =>
         (about: "show your uncompleted tasks")
         (author: "Wildsky F. <wildsky@moztw.org>")
@@ -35,39 +36,10 @@ fn open_and_read(file_name: &str) -> String {
     t.trim().to_string()
 }
 
-fn fetch_api(url: &str, token: &str) -> Value {
-    let mut data = Vec::new();
-    let mut easy = Easy::new();
-    let header_string = format!("Authorization: Bearer {}", token);
-    let mut list = List::new();
-
-    // FIXME: unwrap => unwrap_or_else
-    easy.url(&url).unwrap();
-    list.append("Asana-Fast-Api: true").unwrap();
-    list.append(&header_string).unwrap();
-    easy.http_headers(list).unwrap();
-    {
-        let mut transfer = easy.transfer();
-        transfer.write_function(|new_data| {
-            data.extend_from_slice(new_data);
-            Ok(new_data.len())
-        }).unwrap();
-        transfer.perform().unwrap();
-    }
-
-    let body = std::str::from_utf8(&data).unwrap_or_else(|e| {
-        panic!("Failed to parse response from {}; error is {}", url, e);
-    });
-
-    serde_json::from_str(body).unwrap_or_else(|e| {
-        panic!("Failed to parse json; error is {}", e);
-    })
-}
-
 fn print_workspace_name(config: &Config) {
     let url = format!("https://app.asana.com/api/1.0/workspaces/{}", &config.default_ws);
 
-    println!("On workspace {}", fetch_api(&url, &config.token).as_object()
+    println!("On workspace {}", fetch::fetch_api(&url, &config.token).as_object()
         .and_then(|obj| obj.get("data"))
         .and_then(|obj| obj.as_object())
         .and_then(|obj| obj.get("name"))
@@ -116,7 +88,7 @@ fn show_task_by_category(category: &str, data: &Vec<Value>, show_all: bool) {
 fn show_my_tasks(config: &Config, show_all: bool) {
     // TODO: allow user to set default workspace
     let url = format!("https://app.asana.com/api/1.0/tasks?workspace={}&assignee=me&opt_fields=assignee_status,name,completed", &config.default_ws);
-    let json_obj:Value = fetch_api(&url, &config.token);
+    let json_obj:Value = fetch::fetch_api(&url, &config.token);
 
     let data = json_obj.as_object()
         .and_then(|obj| obj.get("data"))
