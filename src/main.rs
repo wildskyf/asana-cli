@@ -2,7 +2,6 @@ extern crate curl;
 extern crate serde_json;
 #[macro_use]
 extern crate clap;
-extern crate status;
 
 use std::process;
 use std::fs::File;
@@ -18,6 +17,13 @@ static VERSION: &'static str = "1.0.0";
 struct Config {
     token: String,
     default_ws: String
+}
+
+pub fn status_clap() -> clap::App<'static, 'static> {
+    clap_app!(status =>
+        (about: "show your uncompleted tasks")
+        (author: "Wildsky F. <wildsky@moztw.org>")
+        (@arg all: -a "show all task assigned to you, completed and uncompleted (with prefix [ ] or [v])"))
 }
 
 fn open_and_read(file_name: &str) -> String {
@@ -130,7 +136,7 @@ fn asana_status(config: Config, show_all: bool) {
 }
 
 fn main() {
-    let status = status::clap();
+    let status = status_clap();
     let matches = clap_app!( asana =>
         (version: VERSION)
         (author: "Wildsky F. <wildsky@moztw.org>")
