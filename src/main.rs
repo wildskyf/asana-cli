@@ -32,7 +32,7 @@ fn open_and_read(file_name: &str) -> String {
 fn print_workspace_name(config: &Config) {
     let url = format!("https://app.asana.com/api/1.0/workspaces/{}", &config.default_ws);
 
-    println!("On workspace {}", fetch::fetch_api(&url, &config.token).as_object()
+    println!("On workspace {}", fetch::get_api(&url, &config.token).as_object()
         .and_then(|obj| obj.get("data"))
         .and_then(|obj| obj.as_object())
         .and_then(|obj| obj.get("name"))
@@ -81,7 +81,7 @@ fn show_task_by_category(category: &str, data: &Vec<Value>, show_all: bool) {
 fn show_my_tasks(config: &Config, show_all: bool) {
     // TODO: allow user to set default workspace
     let url = format!("https://app.asana.com/api/1.0/tasks?workspace={}&assignee=me&opt_fields=assignee_status,name,completed", &config.default_ws);
-    let json_obj:Value = fetch::fetch_api(&url, &config.token);
+    let json_obj:Value = fetch::get_api(&url, &config.token);
 
     let data = json_obj.as_object()
         .and_then(|obj| obj.get("data"))
@@ -95,8 +95,24 @@ fn show_my_tasks(config: &Config, show_all: bool) {
 }
 
 
-fn asana_add(_config: Config, task_name: &str) {
+fn asana_add(config: Config, task_name: &str) {
     println!("Let's add task assigned to you: {}", task_name);
+
+    let mut post_data_str = String::new();
+    post_data_str.push_str("assignee=me&");
+    post_data_str.push_str(&format!("name={}&", task_name));
+    post_data_str.push_str(&format!("workspace={}", &config.default_ws));
+
+    let json_obj:Value = fetch::post_api("https://app.asana.com/api/1.0/tasks", &config.token, &post_data_str);
+
+    json_obj.as_object()
+        .and_then(|obj| obj.get("data"))
+        .and_then(|data| data.as_object())
+        .unwrap_or_else(|| {
+            panic!("Add task failed.");
+        });
+
+    println!("task '{}' has been added to your inbox.", task_name);
 }
 
 fn asana_status(config: Config, show_all: bool) {
